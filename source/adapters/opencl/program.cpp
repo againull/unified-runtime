@@ -120,14 +120,15 @@ UR_APIEXPORT ur_result_t UR_APICALL urProgramCreateWithBinary(
     ur_device_handle_t *phDevices, size_t *pLengths, const uint8_t **ppBinaries,
     const ur_program_properties_t *pProperties,
     ur_program_handle_t *phProgram) {
-  cl_device_id Devices[numDevices];
+  std::vector<cl_device_id> Devices(numDevices);
   for (uint32_t i = 0; i < numDevices; ++i)
     Devices[i] = cl_adapter::cast<cl_device_id>(phDevices[i]);
   cl_int BinaryStatus[numDevices];
   cl_int CLResult;
   *phProgram = cl_adapter::cast<ur_program_handle_t>(clCreateProgramWithBinary(
-      cl_adapter::cast<cl_context>(hContext), cl_adapter::cast<cl_uint>(1u),
-      Devices, pLengths, ppBinaries, BinaryStatus, &CLResult));
+      cl_adapter::cast<cl_context>(hContext),
+      cl_adapter::cast<cl_uint>(numDevices), Devices.data(), pLengths,
+      ppBinaries, BinaryStatus, &CLResult));
   CL_RETURN_ON_FAILURE(BinaryStatus[0]);
   CL_RETURN_ON_FAILURE(CLResult);
 
