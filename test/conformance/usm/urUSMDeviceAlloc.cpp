@@ -46,21 +46,32 @@ UUR_TEST_SUITE_P(
     uur::printUSMAllocTestString<urUSMDeviceAllocTest>);
 
 TEST_P(urUSMDeviceAllocTest, Success) {
-    void *ptr = nullptr;
-    size_t allocation_size = sizeof(int);
-    ASSERT_SUCCESS(urUSMDeviceAlloc(context, device, nullptr, pool,
-                                    allocation_size, &ptr));
-    ASSERT_NE(ptr, nullptr);
+    constexpr size_t iters = 80;
+    std::cout << "Using " << iters << std::endl;
+    const size_t bytes = 268435456;
 
-    ur_event_handle_t event = nullptr;
-    uint8_t pattern = 0;
-    ASSERT_SUCCESS(urEnqueueUSMFill(queue, ptr, sizeof(pattern), &pattern,
-                                    allocation_size, 0, nullptr, &event));
-    EXPECT_SUCCESS(urQueueFlush(queue));
-    ASSERT_SUCCESS(urEventWait(1, &event));
+    size_t allocated_mem_size = 0;
+    std::vector<void*> ptrs(iters);
+    for (size_t i = 0; i < iters; i++) {
+        ASSERT_SUCCESS(urUSMDeviceAlloc(context, device, nullptr, pool,
+                                        bytes, &(ptrs[i])));
+        if (!ptrs[i]) {
+            std::cout << "Failed to allocate device memory!" << std::endl;
+            return;
+        }
+        allocated_mem_size += bytes;
+        std::cout << "Total allocated mem size after iteration " << i << " : " << allocated_mem_size << std::endl;
 
-    ASSERT_SUCCESS(urUSMFree(context, ptr));
-    EXPECT_SUCCESS(urEventRelease(event));
+        ur_event_handle_t event = nullptr;
+        uint8_t pattern = 0;
+        ASSERT_SUCCESS(urEnqueueUSMFill(queue, ptrs[i], sizeof(pattern), &pattern,
+                                        bytes, 0, nullptr, &event));
+        ASSERT_SUCCESS(urEventWait(1, &event));
+        EXPECT_SUCCESS(urEventRelease(event));
+    }
+    for (void* ptr : ptrs) {
+        ASSERT_SUCCESS(urUSMFree(context, ptr));
+    }
 }
 
 TEST_P(urUSMDeviceAllocTest, SuccessWithDescriptors) {
